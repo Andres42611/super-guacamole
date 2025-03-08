@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Broadcast To IVS</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.css">
+  <script src="https://web-broadcast.live-video.net/1.21.0/amazon-ivs-web-broadcast.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; }
+    .container { margin-top: 20px; }
+    video { width: 80%; max-width: 900px; }
+  </style>
+</head>
+<body>
+
+  <header class="container">
+    <h1>Start Broadcasting</h1>
+    <p>Select your camera and microphone to start streaming.</p>
+  </header>
+
+  <section class="container">
+    <label for="video-devices">Select Webcam</label>
+    <select id="video-devices"></select>
+
+    <label for="audio-devices">Select Microphone</label>
+    <select id="audio-devices"></select>
+
+    <label for="stream-key">Stream Key</label>
+    <input type="text" id="stream-key" readonly />
+
+    <button id="start" class="button">Start Broadcast</button>
+    <button id="stop" class="button" disabled>Stop Broadcast</button>
+  </section>
+
+  <script>
+    let stream, broadcaster;
+
+    async function startBroadcast() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+
+        // Fetch IVS ingest endpoint
+        const response = await fetch("/ivs_details.json");
+        const { ingestUrl, streamKey } = await response.json();
+
+        if (!ingestUrl || !streamKey) {
+          throw new Error("IVS ingest endpoint or stream key missing.");
+        }
+
+        document.getElementById("stream-key").value = streamKey;
+
+        broadcaster = IVSBroadcastClient.create({
+          streamConfig: IVSBroadcastClient.STANDARD_LANDSCAPE,
+          ingestEndpoint: ingestUrl
+        });
+
+        broadcaster.addVideoInputDevice(stream.getVideoTracks()[0]);
+        broadcaster.addAudioInputDevice(stream.getAudioTracks()[0]);
+
+        broadcaster.startBroadcast().then(() => {
+          console.log("✅ Broadcast started successfully!");
+          document.getElementById("start").disabled = true;
+          document.getElementById("stop").disabled = false;
+        });
+
+      } catch (error) {
+        console.error("❌ Broadcast error:", error);
+      }
+    }
+
+    function stopBroadcast() {
+      if (broadcaster) broadcaster.stopBroadcast();
+      if (stream) stream.getTracks().forEach(track => track.stop());
+      document.getElementById("start").disabled = false;
+      document.getElementById("stop").disabled = true;
+    }
+
+    document.getElementById("start").addEventListener("click", startBroadcast);
+    document.getElementById("stop").addEventListener("click", stopBroadcast);
+  </script>
+
+</body>
+</html>
+

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IVS Stream</title>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.css" />
+  <style>
+    #error {
+      color: red;
+    }
+
+    #preview {
+      margin-top: 1rem;
+      background: black;
+      width: 100%;
+      max-width: 640px;
+      aspect-ratio: 16 / 9;
+      display: block;
+    }
+
+    #viewer-ui, #broadcaster-ui {
+      display: none;
+    }
+  </style>
+
+  <!-- IVS SDKs -->
+  <script src="https://web-broadcast.live-video.net/1.21.0/amazon-ivs-web-broadcast.js"></script>
+  <script src="https://player.live-video.net/1.21.0/amazon-ivs-player.min.js"></script>
+  <script src="{{ url_for('static', filename='ivs_broadcastswitch.js') }}" defer></script>
+</head>
+
+<body>
+  <header class="container">
+    <h1>IVS Live Stream</h1>
+    <p>Select whether you want to **Broadcast** or **Watch** the live stream.</p>
+    <button class="button" onclick="setRole('broadcaster')">I am a Broadcaster</button>
+    <button class="button" onclick="setRole('viewer')">I am a Viewer</button>
+  </header>
+
+  <!-- Error Display -->
+  <section class="container">
+    <h3 id="error"></h3>
+  </section>
+
+  <!-- Broadcaster UI -->
+  <div id="broadcaster-ui">
+    <header class="container">
+      <h2>Broadcast To IVS</h2>
+      <p>Use this interface to start a live stream with Amazon IVS.</p>
+    </header>
+
+    <section class="container">
+      <video id="preview" autoplay muted></video>
+    </section>
+
+    <section class="container">
+      <label for="video-devices">Select Webcam</label>
+      <select disabled id="video-devices">
+        <option selected disabled>Choose Option</option>
+      </select>
+
+      <label for="audio-devices">Select Microphone</label>
+      <select disabled id="audio-devices">
+        <option selected disabled>Choose Option</option>
+      </select>
+    </section>
+
+    <section class="container">
+      <label for="stream-config">Select Channel Config</label>
+      <select disabled id="stream-config">
+        <option selected disabled>Choose Option</option>
+      </select>
+    </section>
+
+    <section class="container">
+      <label for="ingest-endpoint">Ingest Endpoint</label>
+      <input type="text" id="ingest-endpoint" value="https://g.webrtc.live-video.net:4443" />
+    </section>
+
+    <section class="container">
+      <label for="stream-key">Stream Key</label>
+      <input type="text" id="stream-key" value="" />
+    </section>
+
+    <!-- Broadcaster enters Playback URL -->
+    <section class="container">
+      <label for="playback-url">Enter AWS IVS Playback URL</label>
+      <input type="text" id="playback-url" placeholder="Enter playback URL (e.g., https://abcd1234.cloudfront.net/index.m3u8)" />
+      <button class="button" onclick="savePlaybackUrl()">Save Playback URL</button>
+    </section>
+
+    <section class="container">
+      <button class="button" id="start" disabled>Start Broadcast</button>
+      <button class="button" id="stop" disabled>Stop Broadcast</button>
+    </section>
+  </div>
+
+  <!-- Viewer UI -->
+  <div id="viewer-ui" class="container">
+    <h2>Watch the Live Stream</h2>
+    <video id="video-player" controls autoplay></video>
+  </div>
+
+  <script>
+    function setRole(role) {
+      if (role === "broadcaster") {
+        document.getElementById("broadcaster-ui").style.display = "block";
+        document.getElementById("viewer-ui").style.display = "none";
+      } else {
+        document.getElementById("broadcaster-ui").style.display = "none";
+        document.getElementById("viewer-ui").style.display = "block";
+        startViewer();
+      }
+    }
+
+    function savePlaybackUrl() {
+      const playbackUrl = document.getElementById("playback-url").value;
+      if (playbackUrl.trim() === "") {
+        alert("Please enter a valid AWS IVS Playback URL.");
+        return;
+      }
+      localStorage.setItem("ivsPlaybackUrl", playbackUrl);
+      alert("Playback URL saved! Viewers can now watch.");
+    }
+
+    function startViewer() {
+      let ivsPlaybackUrl = localStorage.getItem("ivsPlaybackUrl");
+      if (!ivsPlaybackUrl) {
+        document.getElementById("error").textContent = "No playback URL found! Please ask the broadcaster to enter it.";
+        return;
+      }
+
+      if (IVSPlayer.isPlayerSupported) {
+        const player = IVSPlayer.create();
+        player.attachHTMLVideoElement(document.getElementById("video-player"));
+        player.load(ivsPlaybackUrl);
+        player.play();
+      } else {
+        document.getElementById("error").textContent = "IVS Player is not supported in this browser.";
+      }
+    }
+  </script>
+
+</body>
+</html>
